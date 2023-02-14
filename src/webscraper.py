@@ -62,7 +62,6 @@ class WebScraper():
         assert(type(shopid)==int), f"The shopid should be an integer. you provided a value of type {type(shopid)}."
 
         base_url = f'https://shopee.{self.country_to_ext[country.lower()]}/api/v4/shop/search_items?filter_sold_out={filter_sold_out}&limit={chunk_size}&offset=0&order=desc&shopid={shopid}&sort_by=pop&use_case=4'
-        print(base_url)
 
         r = requests.post(url = 'https://async.scraperapi.com/jobs', json={ 'apiKey': self.apiKey, 'url': base_url})
         time.sleep(3)
@@ -74,8 +73,9 @@ class WebScraper():
             time.sleep(5)
             response = requests.get(url = r.json()["statusUrl"])
             status = response.json()["status"]
-        
+
         assert(status=='finished'), "an error has occured, please try again later"
+        assert("items" in response.json()["response"]["body"].keys()), "There doesn't seem to be any items for this combinaison of shopid & country. Please ensure that your seller effectively sells in the given country"
 
         item_count = response.json()["response"]["body"]["total_count"]
         print(f"{item_count} items detected. Fetching all data")
@@ -110,8 +110,10 @@ class WebScraper():
             base_path_raw = BASE_PATH/"../data/raw/"
             base_path_raw.mkdir(exist_ok=True)
             current_date = str(date.today())
-            with open(base_path_raw/f"all-items-raw-shopid-{shopid}-country-{country}-{current_date}.json", "w") as f:
+            file_name = f"all-items-raw-shopid-{shopid}-country-{country}-{current_date}.json"
+            with open(base_path_raw/file_name, "w") as f:
                 json.dump(items_list_raw, f)
+            print(f"raw data saved under the name: '{file_name}'")
 
         if save_parsed:
             base_path_parsed =BASE_PATH/"../data/parsed/"
@@ -131,4 +133,6 @@ class WebScraper():
                     data.append((re.sub(r"(\[(.)+\])*?", "", item["item_basic"]["name"]).strip(), item["item_basic"]["price"]))
 
             df = pd.DataFrame(data=data, columns=columns)
-            df.to_csv(base_path_parsed/f"all-items-parsed-shopid-{shopid}-country-{country}-{current_date}.csv", index=False)
+            file_name = f"all-items-parsed-shopid-{shopid}-country-{country}-{current_date}.csv"
+            df.to_csv(base_path_parsed/file_name, index=False)
+            print(f"parsed data saved under the name: '{file_name}'")
